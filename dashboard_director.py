@@ -41,12 +41,20 @@ if df is not None:
     st.sidebar.markdown("Filtra todos los gráficos al instante")
     
     lista_centros = ["Todas las Sedes"] + list(df['Centro_Origen'].dropna().unique())
-    centro_elegido = st.sidebar.selectbox("Seleccione el Departamento/Centro:", lista_centros)
+    centro_elegido = st.sidebar.selectbox("1. Seleccione Centro/Departamento:", lista_centros)
     
     if centro_elegido != "Todas las Sedes":
         df_filtrado = df[df['Centro_Origen'] == centro_elegido]
     else:
         df_filtrado = df.copy()
+
+    # --- FILTRO 2: OFERTA ---
+    if 'Oferta_Elegida' in df_filtrado.columns:
+        lista_ofertas = ["Todas las Ofertas"] + list(df_filtrado['Oferta_Elegida'].dropna().unique())
+        oferta_elegida = st.sidebar.selectbox("2. Filtrar por Oferta:", lista_ofertas)
+        
+        if oferta_elegida != "Todas las Ofertas":
+            df_filtrado = df_filtrado[df_filtrado['Oferta_Elegida'] == oferta_elegida]
 
     # --- TARJETAS METRICAS ---
     st.markdown("### 📊 Indicadores Clave")
@@ -63,30 +71,42 @@ if df is not None:
 
     st.markdown("---")
     
-    # --- GRAFICOS (Plotly) ---
-    graf_col1, graf_col2 = st.columns(2)
+    # --- PESTAÑAS DE GRAFICOS ---
+    tab1, tab2 = st.tabs(["🌎 Distribución de Alumnos y Ofertas", "📈 Reportes de Gestión a Futuro"])
     
-    with graf_col1:
-        st.subheader("Distribución Geográfica")
-        if centro_elegido == "Todas las Sedes":
-            conteos_dept = df['Centro_Origen'].value_counts().reset_index()
-            conteos_dept.columns = ['Sede', 'Cantidad']
-            # Creamos una hermosa torta interactiva
-            fig_torta = px.pie(conteos_dept, values='Cantidad', names='Sede', hole=0.4,
-                               color_discrete_sequence=px.colors.sequential.Plotly3)
-            st.plotly_chart(fig_torta, use_container_width=True)
-        else:
-            st.info("La Sede seleccionada ocupa el 100% de la vista.")
+    with tab1:
+        graf_col1, graf_col2 = st.columns(2)
+        
+        with graf_col1:
+            st.subheader("Por Sede Geográfica")
+            if centro_elegido == "Todas las Sedes":
+                conteos_dept = df_filtrado['Centro_Origen'].value_counts().reset_index()
+                conteos_dept.columns = ['Sede', 'Cantidad']
+                fig_torta = px.pie(conteos_dept, values='Cantidad', names='Sede', hole=0.4,
+                                   color_discrete_sequence=px.colors.sequential.Plotly3)
+                st.plotly_chart(fig_torta, use_container_width=True)
+            else:
+                st.info(f"Visualizando el 100% de la sede: {centro_elegido}.")
 
-    with graf_col2:
+        with graf_col2:
+            st.subheader("Por Oferta Cursada")
+            if 'Oferta_Elegida' in df_filtrado.columns:
+                conteos_of = df_filtrado['Oferta_Elegida'].value_counts().reset_index()
+                conteos_of.columns = ['Oferta', 'Cantidad']
+                fig_torta_of = px.pie(conteos_of, values='Cantidad', names='Oferta', hole=0.4,
+                                      color_discrete_sequence=px.colors.sequential.Teal)
+                st.plotly_chart(fig_torta_of, use_container_width=True)
+
+    with tab2:
         st.subheader("Control de Trayectoria y Estado")
         if col_estado in df_filtrado.columns:
             estado_agrupado = df_filtrado[col_estado].value_counts().reset_index()
             estado_agrupado.columns = ['Estado', 'Alumnos']
-            # Barra estadística
             fig_barra = px.bar(estado_agrupado, x='Estado', y='Alumnos', color='Estado',
                                color_discrete_sequence=px.colors.qualitative.Pastel)
             st.plotly_chart(fig_barra, use_container_width=True)
+        else:
+            st.info("Columna de gestión no encontrada.")
 
     # --- TABLA CRUDA ---
     st.markdown("### 📋 Vista Detalles de Alumnos")
