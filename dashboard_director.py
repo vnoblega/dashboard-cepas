@@ -1,0 +1,95 @@
+import streamlit as st
+import pandas as pd
+import plotly.express as px
+import os
+
+import requests
+import io
+
+st.set_page_config(page_title="Panel General CEPAS", layout="wide", page_icon="📝")
+
+# ID mágico de tu archivo en Google Drive (es el código largo del enlace que pasaste)
+GOOGLE_DRIVE_FILE_ID = "15X1CpkuIjZ1JPkJo-yWhwLo6PRF_EhSV"
+URL_DESCARGA = f"https://drive.google.com/uc?export=download&id={GOOGLE_DRIVE_FILE_ID}"
+
+@st.cache_data(ttl=600) # Se actualiza cada 10 minutos
+def cargar_datos():
+    try:
+        # Streamlit descarga silenciosamente tu excel desde Google Drive en memoria
+        headers = {"User-Agent": "Mozilla/5.0"}
+        respuesta = requests.get(URL_DESCARGA, headers=headers)
+        
+        if respuesta.status_code == 200:
+            bytes_data = io.BytesIO(respuesta.content)
+            df = pd.read_excel(bytes_data, sheet_name="2_BASE_CONCENTRADA")
+            return df
+        else:
+            return None
+    except Exception as e:
+        st.error(f"Error técnico conectando a Google Drive: {e}")
+        return None
+
+# --- ENCBAEZADO ---
+st.title("🖥️ Tablero de Dirección - CEPAS 2026")
+st.markdown("Monitor analítico general para directivos. Se nutre de los reportes diarios de todos los centros.")
+
+df = cargar_datos()
+
+if df is not None:
+    # --- BARRA LATERAL (Filtros) ---
+    st.sidebar.header("Menú Interactivo")
+    st.sidebar.markdown("Filtra todos los gráficos al instante")
+    
+    lista_centros = ["Todas las Sedes"] + list(df['Centro_Origen'].dropna().unique())
+    centro_elegido = st.sidebar.selectbox("Seleccione el Departamento/Centro:", lista_centros)
+    
+    if centro_elegido != "Todas las Sedes":
+        df_filtrado = df[df['Centro_Origen'] == centro_elegido]
+    else:
+        df_filtrado = df.copy()
+
+    # --- TARJETAS METRICAS ---
+    st.markdown("### 📊 Indicadores Clave")
+    c1, c2, c3 = st.columns(3)
+    
+    c1.metric("Preinscriptos Registrados", f"{len(df_filtrado)} alumnos")
+    
+    col_estado = "Estado Actual (Cursando / No Cursa)"
+    if col_estado in df_filtrado.columns:
+        cursando = len(df_filtrado[df_filtrado[col_estado] == "Cursando"])
+        c2.metric("🟢 Actualmente Cursando", cursando)
+        no_cursa = len(df_filtrado[df_filtrado[col_estado] == "No Cursa"])
+        c3.metric("🔴 No Cursa", no_cursa)
+
+    st.markdown("---")
+    
+    # --- GRAFICOS (Plotly) ---
+    graf_col1, graf_col2 = st.columns(2)
+    
+    with graf_col1:
+        st.subheader("Distribución Geográfica")
+        if centro_elegido == "Todas las Sedes":
+            conteos_dept = df['Centro_Origen'].value_counts().reset_index()
+            conteos_dept.columns = ['Sede', 'Cantidad']
+            # Creamos una hermosa torta interactiva
+            fig_torta = px.pie(conteos_dept, values='Cantidad', names='Sede', hole=0.4,
+                               color_discrete_sequence=px.colors.sequential.Plotly3)
+            st.plotly_chart(fig_torta, use_container_width=True)
+        else:
+            st.info("La Sede seleccionada ocupa el 100% de la vista.")
+
+    with graf_col2:
+        st.subheader("Control de Trayectoria y Estado")
+        if col_estado in df_filtrado.columns:
+            estado_agrupado = df_filtrado[col_estado].value_counts().reset_index()
+            estado_agrupado.columns = ['Estado', 'Alumnos']
+            # Barra estadística
+            fig_barra = px.bar(estado_agrupado, x='Estado', y='Alumnos', color='Estado',
+                               color_discrete_sequence=px.colors.qualitative.Pastel)
+            st.plotly_chart(fig_barra, use_container_width=True)
+
+    # --- TABLA CRUDA ---
+    st.markdown("### 📋 Vista Detalles de Alumnos")
+    st.dataframe(df_filtrado, use_container_width=True, hide_index=True)
+else:
+    st.warning(f"¡Atención! No encontré el archivo `{ARCHIVO_DATOS}` local. Ejecuta tu script principal primero para fabricarlo.")
