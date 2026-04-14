@@ -49,12 +49,12 @@ if df is not None:
         df_filtrado = df.copy()
 
     # --- FILTRO 2: OFERTA ---
-    if 'Oferta_Elegida' in df_filtrado.columns:
-        lista_ofertas = ["Todas las Ofertas"] + list(df_filtrado['Oferta_Elegida'].dropna().unique())
+    if 'Oferta Seleccionada' in df_filtrado.columns:
+        lista_ofertas = ["Todas las Ofertas"] + list(df_filtrado['Oferta Seleccionada'].dropna().unique())
         oferta_elegida = st.sidebar.selectbox("2. Filtrar por Oferta:", lista_ofertas)
         
         if oferta_elegida != "Todas las Ofertas":
-            df_filtrado = df_filtrado[df_filtrado['Oferta_Elegida'] == oferta_elegida]
+            df_filtrado = df_filtrado[df_filtrado['Oferta Seleccionada'] == oferta_elegida]
 
     # --- TARJETAS METRICAS ---
     st.markdown("### 📊 Indicadores Clave")
@@ -90,8 +90,8 @@ if df is not None:
 
         with graf_col2:
             st.subheader("Por Oferta Cursada")
-            if 'Oferta_Elegida' in df_filtrado.columns:
-                conteos_of = df_filtrado['Oferta_Elegida'].value_counts().reset_index()
+            if 'Oferta Seleccionada' in df_filtrado.columns:
+                conteos_of = df_filtrado['Oferta Seleccionada'].value_counts().reset_index()
                 conteos_of.columns = ['Oferta', 'Cantidad']
                 fig_torta_of = px.pie(conteos_of, values='Cantidad', names='Oferta', hole=0.4,
                                       color_discrete_sequence=px.colors.sequential.Teal)
